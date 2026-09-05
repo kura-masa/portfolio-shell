@@ -1,0 +1,5 @@
+# ゲームのビルド成果物。合計80MB近くあり、元のリポジトリ側が持っているので、
+# ここには入れない。./sync-games.sh で集める（README参照）。
+games/*
+!games/.gitkeep
+.DS_Store

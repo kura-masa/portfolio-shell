@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ポートフォリオ（仮）</title>
+<style>
+  /* ==========================================================================
+     festival-kiosk の「ゲーム選択画面」(public/index.html) から
+     祭り運営に依存する部分を落として、Web公開向けに作り直したシェル。
+
+     引き継いだもの : 左リスト＋右プレビューの2カラム / 選択行とプレビュー枠の
+                      シアンの発光 / 濃紺の地 / ドット絵アイコン / ">" のカーソル
+     落としたもの   : ?station=N / セッションAPIのポーリング / 受付待ちロック画面 /
+                      終了画面 / 8分アイドル / 参加賞 / sendBeacon / ゲームパッド /
+                      cursor:none / 待機デモの自動操縦
+     変えたもの     : 本文の書体（下記）/ 文字サイズ（キオスクの巨大サイズ → 画面用）/
+                      マウス・タップを主操作に / 狭い画面で1カラムに畳む
+     ========================================================================== */
+
+  /* 美咲ゴシックは8pxのドットフォント。キオスクと同じく画面全体に当てている。
+     ⚠️ 文字サイズは必ず8の倍数にすること。半端な値だと1ドットの幅が揃わず縁がガタつく。
+     ⚠️ 画数の多い漢字は小さいサイズで潰れる（festival-kiosk で実測済み）。
+        漢字を足すときは実物で読めるか見てから。潰れるものは かな に開くと収まる。 */
+  @font-face {
+    font-family: "Misaki";
+    src: url("./fonts/misaki_gothic.ttf") format("truetype");
+    font-display: swap;
+  }
+
+  :root {
+    --bg: #0a0d29;
+    --panel: #0d1132;
+    --line: #2a2f5e;
+    --fg: #ffffff;
+    --dim: #98a0cf;      /* キオスクの #8a90c0 より少し明るい。Web は視聴距離が近く、
+                            暗い画面を長く読むので、コントラストを上げてある */
+    --accent: #6ad8f0;   /* 発光にだけ使う。地の色は濃紺＋白のまま */
+    --sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+                         /* 美咲が読めなかったときの受け皿としてだけ使う */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Misaki", var(--sans);
+    -webkit-font-smoothing: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* ドット絵と映像は補間せずに拡大する（にじませない） */
+  svg, img, video { image-rendering: pixelated; display: block; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ===== 全体レイアウト ===== */
+  #app { height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
+
+  header {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    padding: 16px 24px; border-bottom: 2px solid var(--line);
+  }
+  header .title { font-size: 32px; }
+  header .lead { font-size: 16px; color: var(--dim); }
+
+  /* 左は固定幅。割合(34%)にすると窓幅によってプロダクト名が折り返し、行の高さが揃わない。
+     プレビューは高さで決まるので、右を削っても絵は小さくならない。
+     420px の内訳: カーソル24 + アイコン48 + 余白74 + 名前274。
+     美咲は全角1文字＝フォントサイズと同じ幅なので、24pxなら名前は11文字まで1行に収まる。 */
+  main { display: grid; grid-template-columns: 420px 1fr; min-height: 0; }
+
+  /* ===== 左：プロダクトの一覧 ===== */
+  .list {
+    border-right: 2px solid var(--line);
+    padding: 16px 12px; display: flex; flex-direction: column; gap: 8px;
+    overflow-y: auto; min-height: 0;
+  }
+  .row {
+    display: grid; grid-template-columns: 24px 48px 1fr; align-items: center; gap: 12px;
+    padding: 12px 10px; border: 2px solid transparent; cursor: pointer;
+  }
+  .row .cursor { font-size: 24px; visibility: hidden; }
+  .row.sel .cursor { visibility: visible; color: var(--accent); animation: blink 1s steps(1) infinite; }
+  .row .name { font-size: 24px; }
+  .row .sub  { font-size: 16px; color: var(--dim); margin-top: 8px; }
+  .row.sel {
+    background: #1a1f4d;
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(106,216,240,.55), inset 0 0 14px rgba(106,216,240,.10);
+  }
+  .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @keyframes blink { 0%, 60% { opacity: 1 } 61%, 100% { opacity: .25 } }
+
+  /* ===== 右：選択中のプロダクト ===== */
+  .detail {
+    padding: 20px 28px 24px; display: grid; grid-template-rows: auto 1fr auto;
+    gap: 14px; min-height: 0;
+  }
+  .detail .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .detail h1 { font-size: 32px; font-weight: normal; }
+  .detail .meta { font-size: 16px; color: var(--dim); }
+  .detail .tag {
+    font-size: 16px; padding: 4px 12px; border: 1px solid var(--line); color: var(--dim);
+  }
+
+  .preview-wrap { display: flex; align-items: center; justify-content: center; min-height: 0; }
+  /* 枠の比率はプロダクトごとに変える（ゲームは 256:240、サイトは 16:9）。
+     JS から --ratio を書き換えている。 */
+  .preview {
+    --ratio: 16 / 9;
+    aspect-ratio: var(--ratio);
+    /* aspect-ratio だけでは大きさが決まらず枠が潰れる。
+       高さを親いっぱいに取り、幅は比率から決めさせる（横にあふれたら max-width で抑える）。 */
+    height: 100%; width: auto; max-width: 100%;
+    position: relative;
+    overflow: hidden;          /* 中身が枠から出ないようにする（下の仮絵の件） */
+    background: #080b20;
+    border: 3px solid var(--accent);
+    box-shadow: 0 0 10px rgba(106,216,240,.40);
+  }
+  /* ⚠️ ここを .preview > * にすると、バッジの <span> まで枠いっぱいに引き伸ばされ、
+     半透明の背景が映像全体を覆ってしまう。伸ばすのは映像の入れ物だけ。 */
+  .preview > .stack { width: 100%; height: 100%; }
+  /* 映像を全部重ねて置き、表示だけ切り替える。
+     選ぶたびに読み込み直すと数百ms待たされるため（キオスクでの実測）。 */
+  .stack { position: relative; }
+  .stack > * { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  .stack > .on { display: block; }
+  .preview video, .preview img { object-fit: cover; background: #080b20; }
+  /* ⚠️ 仮絵のインラインSVGは、高さを指定しないと viewBox の比率で伸び、
+     枠を突き抜けて下の説明文に被る。幅・高さの両方を枠に合わせる
+     （preserveAspectRatio は既定の meet なので、絵は歪まず内側に収まる）。 */
+  .stack svg { width: 100%; height: 100%; }
+  /* ゲーム側の画面にもスコア表示があるので、左上ではなく右下に逃がす */
+  .preview .badge {
+    position: absolute; right: 8px; bottom: 8px; z-index: 1;
+    font-size: 16px; color: var(--dim);
+    background: rgba(8,11,32,.75); padding: 3px 8px;
+  }
+
+  .desc { font-size: 16px; line-height: 2; color: #e6e9ff; white-space: pre-line; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border: 2px solid var(--line); color: var(--dim);
+    font-size: 16px; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--fg); }
+  .btn.primary {
+    border-color: var(--accent); color: var(--fg);
+    box-shadow: 0 0 10px rgba(106,216,240,.35);
+  }
+  .btn.primary:hover { background: #1a1f4d; }
+  .btn[aria-disabled="true"] { opacity: .4; cursor: default; }
+  .btn[aria-disabled="true"]:hover { border-color: var(--line); color: var(--dim); }
+
+  footer {
+    display: flex; align-items: center; justify-content: center; gap: 32px; flex-wrap: wrap;
+    padding: 12px; border-top: 2px solid var(--line);
+    font-size: 16px; color: var(--dim);
+  }
+  footer .key {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 32px; height: 32px; padding: 0 8px; margin-right: 8px;
+    border: 1px solid var(--line); color: var(--fg); font-size: 16px;
+  }
+
+  /* ===== 狭い画面：1カラムに畳んで、ページごとスクロールさせる =====
+     キオスクは1画面固定でよかったが、こちらはスマホで開かれる。 */
+  @media (max-width: 900px) {
+    #app { height: auto; min-height: 100dvh; }
+    main { grid-template-columns: 1fr; }
+    .list { border-right: none; border-bottom: 2px solid var(--line); overflow: visible; }
+    .detail { padding: 20px; }
+    .detail h1 { font-size: 24px; }
+    /* 幅いっぱいでもプロダクト名が折り返さないよう1段落とす（8の倍数は維持）。
+       sub と同じ大きさになるが、色で区別がつく。 */
+    .row .name { font-size: 16px; }
+    .preview { height: auto; width: 100%; max-width: 100%; }
+    footer { display: none; }   /* キー操作の案内はキーボードのある画面だけでよい */
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <!-- ⚠️ 仮置き。チーム名・肩書き・一言は未確定 -->
+    <div class="title">ポートフォリオ（仮）</div>
+    <div class="lead">つくったものを ならべています</div>
+  </header>
+
+  <main>
+    <div class="list" id="list" role="listbox" aria-label="プロダクト一覧"></div>
+    <div class="detail">
+      <div class="head">
+        <h1 id="d-title"></h1>
+        <span class="tag" id="d-tag"></span>
+        <span class="meta" id="d-by"></span>
+      </div>
+      <div class="preview-wrap">
+        <div class="preview" id="d-preview">
+          <span class="badge" id="d-badge"></span>
+          <div class="stack" id="d-stack"></div>
+        </div>
+      </div>
+      <div class="desc" id="d-desc"></div>
+      <div class="actions" id="d-actions"></div>
+    </div>
+  </main>
+
+  <footer>
+    <span><span class="key">↑↓</span>えらぶ</span>
+    <span><span class="key">Enter</span>ひらく</span>
+  </footer>
+</div>
+
+<script>
+  // ---------- ドット絵(SVG) ----------
+  // festival-kiosk から持ってきたヘルパ。P=枠、R=1マス塗り。
+  const P = (w, h, body) => `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+  const R = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+
+  const ICON_STG = P(16, 16,
+    R(7,2,2,3,"#dff1ff") + R(6,5,4,3,"#7fc7ff") + R(5,8,6,3,"#3aa0ff") +
+    R(3,10,10,3,"#2f6fd0") + R(2,12,3,2,"#1b4a9c") + R(11,12,3,2,"#1b4a9c") +
+    R(6,13,4,2,"#ff9d3a") + R(7,15,2,1,"#ffdf6a"));
+  const ICON_BK = P(16, 16,
+    R(1,2,4,2,"#e2483d") + R(6,2,4,2,"#ef8f36") + R(11,2,4,2,"#e2c93a") +
+    R(1,5,4,2,"#ef8f36") + R(6,5,4,2,"#e2c93a") + R(11,5,4,2,"#5ec46a") +
+    R(7,9,2,2,"#ffffff") + R(4,13,8,2,"#4aa8ff"));
+  const ICON_TW = P(16, 16,
+    R(7,1,2,2,"#c9c9c9") + R(6,3,4,3,"#a9a9a9") + R(5,6,6,3,"#8f8f8f") +
+    R(4,9,8,3,"#a9a9a9") + R(2,12,12,3,"#7d7d7d"));
+  // 汎用アイコン（ゲーム以外のプロダクト用）
+  const ICON_WEB = P(16, 16,
+    R(1,2,14,12,"#2f6fd0") + R(1,2,14,3,"#4aa8ff") +
+    R(2,3,1,1,"#dff1ff") + R(4,3,1,1,"#dff1ff") + R(6,3,1,1,"#dff1ff") +
+    R(3,7,10,1,"#dff1ff") + R(3,9,8,1,"#9fb0ff") + R(3,11,6,1,"#9fb0ff"));
+  const ICON_APP = P(16, 16,
+    R(4,1,8,14,"#3a4180") + R(5,3,6,9,"#0a0d29") +
+    R(6,5,4,1,"#5ec46a") + R(6,7,4,1,"#5ec46a") + R(6,9,2,1,"#5ec46a") +
+    R(7,13,2,1,"#8f8f8f"));
+
+  // プレビュー映像が無いときに同じ位置へ出す仮絵。
+  const stars = Array.from({length:26}, (_,i) =>
+    R((i*97)%250, (i*61)%230, 2, 2, i%3 ? "#4a5590" : "#9fb0ff")).join("");
+  const SCENE_BLANK = P(256, 240,
+    R(0,0,256,240,"#080b20") + stars +
+    R(88,112,80,8,"#3a4180") + R(88,128,52,8,"#3a4180"));
+  const SCENE_TOWER = P(256, 240,
+    R(0,0,256,240,"#080b20") +
+    Array.from({length:12}, (_,i) => R(0, i*20, 256, 10, "#10143a")).join("") +
+    R(96,104,64,8,"#3a4180") + R(96,120,40,8,"#3a4180") + R(96,136,52,8,"#3a4180"));
+
+  // ==========================================================================
+  // ここを書き換えるだけで並びが変わる。
+  //
+  //   name     : プロダクト名（左リストと見出しに出る。ドット書体で出るので短く）
+  //   sub      : 一行の添え書き
+  //   tag      : 種類のラベル（"ゲーム" / "Webサイト" / "アプリ" など）
+  //   by       : 誰が作ったか。⚠️ 分からないものは【要確認】のままにしておくこと
+  //   icon     : 左リストのドット絵
+  //   scene    : プレビューが読めなかったときの仮絵
+  //   ratio    : プレビュー枠の比率（ゲームは "256 / 240"、サイトは "16 / 9"）
+  //   demo     : ループ再生する映像（webm/mp4）。無ければ省略
+  //   poster   : 映像が無いときに出す静止画。無ければ scene が出る
+  //   desc     : 説明文（普通の書体で読ませる。改行はそのまま反映される）
+  //   actions  : ボタン。primary:true が光るボタンになる。
+  //              href が空文字なら「準備中」として押せない見た目になる
+  // ==========================================================================
+  const PRODUCTS = [
+    {
+      id: "stg", name: "シューティングゲーム", sub: "うちゅうを まもる", tag: "ゲーム",
+      by: "制作: 【要確認】",
+      icon: ICON_STG, scene: SCENE_BLANK, ratio: "256 / 240",
+      demo: "./demos/stg.webm",
+      desc: "うちゅうから せめてくる てきを ビームで うちおとす、\nファミコン風の たてスクロール シューティング。\n\nGodot 4 で作り、そのまま ブラウザで あそべます。",
+      actions: [
+        { label: "▶ あそぶ", href: "./games/stg/index.html", primary: true },
+        { label: "ソースを見る", href: "" }
+      ]
+    },
+    {
+      id: "breakout", name: "ブロックくずし", sub: "ボールを はねかえす", tag: "ゲーム",
+      by: "制作: 【要確認】",
+      icon: ICON_BK, scene: SCENE_BLANK, ratio: "256 / 240",
+      demo: "./demos/breakout.webm",
+      desc: "ボールを はねかえして ブロックを ぜんぶ こわす。\nボスや アイテムの ある ステージ制。\n\n同じ ファミコン風の 見た目で そろえています。",
+      actions: [
+        { label: "▶ あそぶ", href: "./games/breakout/index.html", primary: true },
+        { label: "ソースを見る", href: "" }
+      ]
+    },
+    {
+      id: "tower", name: "ともだちたわーばとる", sub: "つみあげて たたかう", tag: "ゲーム",
+      by: "制作: 谷口",
+      icon: ICON_TW, scene: SCENE_TOWER, ratio: "16 / 9",
+      // ⚠️ 映像が未収録。録り方は README の「プレビューを用意する」を参照
+      // ⚠️ このゲームは縦長（スマホ向け）の画面。映像を録ったら ratio を実物に合わせること
+      desc: "とった しゃしんを きりぬいて、その かたちの まま つみあげる 物理ゲーム。\n1人用と、同じPCでの 2人対戦に 対応。\n\nTypeScript + Vite + matter-js。",
+      actions: [
+        { label: "▶ あそぶ", href: "./games/tower/index.html", primary: true },
+        { label: "ソースを見る", href: "" }
+      ]
+    },
+    // --- ここから下は枠の見本。中身は未確定なので、実物に置き換えてください ---
+    {
+      id: "shinonsen-townhall-punch", name: "新温泉町役場 打刻PWA", sub: "スマホでかんたん 出退勤", tag: "Webアプリ",
+      by: "制作: kura-masa",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/shinonsen-townhall-punch.webm",
+      desc: "新温泉町役場向けの 出退勤きろく PWA。\nホーム画面に追加すると、アプリのように 全画面で 起動します。\n\n打刻した しゅんかんだけ 位置情報を送り、庁舎内かどうかを 判定します。",
+      actions: [
+        { label: "サイトを見る", href: "https://kura-masa.github.io/shinonsen-townhall-punch/", primary: true },
+        { label: "ソースを見る", href: "https://github.com/kura-masa/shinonsen-townhall-punch" }
+      ]
+    },
+    {
+      id: "loca-the-junpu-ai-chatbot", name: "LOCA THE JUNPU AIチャットボット", sub: "予約ページに AIコンシェルジュ", tag: "Webアプリ",
+      by: "制作: kura-masa",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/loca-the-junpu-ai-chatbot.webm",
+      desc: "宿泊施設「LOCA THE JUNPU」の 予約ページに\nRAG と Gemini で 動く AIコンシェルジュを 埋め込んだ デモ。\n\nお客様からの 質問に、その場で 自動で 答えます。",
+      actions: [
+        { label: "サイトを見る", href: "https://loca-the-junpu-ai-chatbot.vercel.app", primary: true },
+        { label: "ソースを見る", href: "https://github.com/kura-masa/loca-the-junpu-ai-chatbot" }
+      ]
+    },
+    {
+      id: "junpu-dashboard", name: "旅館 予約ダッシュボード", sub: "Beds24と つながる 予約かんり", tag: "Webアプリ",
+      by: "制作: kura-masa",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/junpu-dashboard.webm",
+      desc: "予約サイト連携システム Beds24 の データを 読みこみ、\n見やすく かしか するための ダッシュボード。",
+      actions: [
+        { label: "サイトを見る", href: "https://junpu-dashboard.vercel.app", primary: true },
+        { label: "ソースを見る", href: "https://github.com/kura-masa/junpu-dashboard" }
+      ]
+    },
+    {
+      id: "bird_hoken_app", name: "保険 営業支援アプリ", sub: "ヒアリングを AIで サポート", tag: "Webアプリ",
+      by: "制作: kura-masa",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/bird_hoken_app.webm",
+      desc: "保険の 営業さん向けの ヒアリング支援ツール。\nお客様の 状況を えらんでいくと、次に 聞くことを AIが 提案します。",
+      actions: [
+        { label: "サイトを見る", href: "https://birdhokenapp.vercel.app", primary: true },
+        { label: "ソースを見る", href: "https://github.com/kura-masa/bird_hoken_app" }
+      ]
+    },
+    {
+      id: "ideas-knowledges-article", name: "Ideas & Knowledges", sub: "行動科学の 知見を 記事に", tag: "Webアプリ",
+      by: "制作: kura-masa",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/IdeasAndKnowledgesArticle.webm",
+      desc: "心理学や 行動科学の 研究を、日常で つかえる かたちに まとめた 記事サイト。",
+      actions: [
+        { label: "サイトを見る", href: "https://ideas-and-knowledges-article.vercel.app", primary: true },
+        { label: "ソースを見る", href: "https://github.com/kura-masa/IdeasAndKnowledgesArticle" }
+      ]
+    },
+    {
+      id: "o-range-website", name: "O-range", sub: "メンバー紹介と 音声要約", tag: "Webアプリ",
+      by: "制作: kura-masa",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/o-range-website.webm",
+      desc: "スマホに 特化した メンバー紹介・進捗報告サイト。\n音声で 話した 内容を、AIが 自動で 要約します。",
+      actions: [
+        { label: "サイトを見る", href: "https://website--o-range-ba273.asia-southeast1.hosted.app", primary: true },
+        { label: "ソースを見る", href: "https://github.com/kura-masa/o-range-website" }
+      ]
+    },
+    {
+      id: "junpumaru", name: "順風丸", sub: "漁業を 出漁サポートと 統計で", tag: "Webアプリ",
+      by: "制作: kura-masa",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/junpumaru.webm",
+      desc: "漁師さん向けの 出漁サポート＆漁獲統計アプリ。\n波や 風の 予報を みながら、いつ 出るかを 判断できます。",
+      actions: [
+        { label: "サイトを見る", href: "https://junpumaru.web.app", primary: true }
+      ]
+    }];
+
+  // ---------- 画面の組み立て ----------
+  let sel = 0;
+  const $list = document.getElementById("list");
+  const $stack = document.getElementById("d-stack");
+
+  function buildList() {
+    $list.innerHTML = PRODUCTS.map((p, i) => `
+      <div class="row" data-i="${i}" role="option" tabindex="0" aria-selected="false">
+        <div class="cursor">&gt;</div>
+        <div class="art">${p.icon}</div>
+        <div><div class="name">${p.name}</div><div class="sub">${p.sub}</div></div>
+      </div>`).join("");
+  }
+
+  // 映像は最初にまとめて用意して重ねておく。読めなければ仮絵に差し替える。
+  function buildStack() {
+    $stack.innerHTML = "";
+    PRODUCTS.forEach((p, i) => {
+      const fallback = () => {
+        const d = document.createElement("div");
+        d.dataset.i = i;
+        d.innerHTML = p.poster
+          ? `<img src="${p.poster}" alt="">`
+          : p.scene;
+        // poster の読み込みも失敗しうるので、そのときはドット絵まで落とす
+        const img = d.querySelector("img");
+        if (img) img.addEventListener("error", () => { d.innerHTML = p.scene; });
+        $stack.replaceChild(d, $stack.children[i]);
+        if (i === sel) d.classList.add("on");
+      };
+      if (!p.demo) {
+        const d = document.createElement("div");
+        d.dataset.i = i;
+        d.innerHTML = p.poster ? `<img src="${p.poster}" alt="">` : p.scene;
+        const img = d.querySelector("img");
+        if (img) img.addEventListener("error", () => { d.innerHTML = p.scene; });
+        $stack.appendChild(d);
+        return;
+      }
+      const v = document.createElement("video");
+      v.src = p.demo; v.muted = true; v.loop = true; v.autoplay = true;
+      v.playsInline = true; v.preload = "metadata"; v.dataset.i = i;
+      v.addEventListener("error", fallback);
+      $stack.appendChild(v);
+    });
+  }
+
+  function render() {
+    const p = PRODUCTS[sel];
+
+    document.querySelectorAll("#list .row").forEach((el, i) => {
+      const on = i === sel;
+      el.classList.toggle("sel", on);
+      el.setAttribute("aria-selected", String(on));
+    });
+
+    document.getElementById("d-title").textContent = p.name;
+    document.getElementById("d-tag").textContent = p.tag || "";
+    document.getElementById("d-by").textContent = p.by || "";
+    document.getElementById("d-desc").textContent = p.desc || "";
+    document.getElementById("d-badge").textContent = p.demo ? "デモ" : "プレビュー";
+    document.getElementById("d-preview").style.setProperty("--ratio", p.ratio || "16 / 9");
+
+    [...$stack.children].forEach((el, i) => {
+      const on = i === sel;
+      el.classList.toggle("on", on);
+      // 隠れているあいだブラウザが再生を間引くことがあるので、出すときに必ず起こす
+      if (on && el.tagName === "VIDEO") el.play().catch(() => {});
+    });
+
+    document.getElementById("d-actions").innerHTML = (p.actions || []).map((a) => {
+      const cls = "btn" + (a.primary ? " primary" : "");
+      return a.href
+        ? `<a class="${cls}" href="${a.href}">${a.label}</a>`
+        : `<span class="${cls}" aria-disabled="true">${a.label}</span>`;
+    }).join("");
+  }
+
+  function move(delta) {
+    sel = (sel + delta + PRODUCTS.length) % PRODUCTS.length;
+    render();
+    document.querySelectorAll("#list .row")[sel].scrollIntoView({ block: "nearest" });
+  }
+
+  // 選択中のプロダクトの、いちばん上のボタンを開く
+  function open() {
+    const a = document.querySelector("#d-actions a");
+    if (a) location.href = a.getAttribute("href");
+  }
+
+  // ---------- 操作 ----------
+  // マウスのある画面では「ホバーで選ぶ・クリックで開く」。
+  // タッチでは ホバーが無いので、キオスクと同じ「1回目で選ぶ・2回目で開く」にする。
+  const canHover = matchMedia("(hover: hover)").matches;
+
+  buildList();
+  buildStack();
+  render();
+
+  $list.addEventListener("mouseover", (e) => {
+    if (!canHover) return;
+    const row = e.target.closest(".row");
+    if (!row) return;
+    const i = +row.dataset.i;
+    if (i !== sel) { sel = i; render(); }
+  });
+
+  $list.addEventListener("click", (e) => {
+    const row = e.target.closest(".row");
+    if (!row) return;
+    const i = +row.dataset.i;
+    if (canHover || i === sel) { sel = i; render(); open(); }
+    else { sel = i; render(); }
+  });
+
+  // キーボードでも一通り動かせるようにしておく（元のキオスクの操作感を残す）
+  addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); move(1); }
+    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); move(-1); }
+    else if (e.key === "Enter") open();
+  });
+</script>
+</body>
+</html>
