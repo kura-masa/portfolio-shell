@@ -271,24 +271,22 @@
   const PRODUCTS = [
     {
       id: "stg", name: "シューティングゲーム", sub: "うちゅうを まもる", tag: "ゲーム",
-      by: "制作: 【要確認】",
       icon: ICON_STG, scene: SCENE_BLANK, ratio: "256 / 240",
       demo: "./demos/stg.webm",
       desc: "うちゅうから せめてくる てきを ビームで うちおとす、\nファミコン風の たてスクロール シューティング。\n\nGodot 4 で作り、そのまま ブラウザで あそべます。",
       actions: [
         { label: "▶ あそぶ", href: "./games/stg/index.html", primary: true },
-        { label: "ソースを見る", href: "" }
+        { label: "ソースを見る", href: "https://github.com/medaka333/famicongame" }
       ]
     },
     {
       id: "breakout", name: "ブロックくずし", sub: "ボールを はねかえす", tag: "ゲーム",
-      by: "制作: 【要確認】",
       icon: ICON_BK, scene: SCENE_BLANK, ratio: "256 / 240",
       demo: "./demos/breakout.webm",
       desc: "ボールを はねかえして ブロックを ぜんぶ こわす。\nボスや アイテムの ある ステージ制。\n\n同じ ファミコン風の 見た目で そろえています。",
       actions: [
         { label: "▶ あそぶ", href: "./games/breakout/index.html", primary: true },
-        { label: "ソースを見る", href: "" }
+        { label: "ソースを見る", href: "https://github.com/medaka333/famicongame" }
       ]
     },
     {
@@ -296,11 +294,11 @@
       by: "制作: 谷口",
       icon: ICON_TW, scene: SCENE_TOWER, ratio: "16 / 9",
       // ⚠️ 映像が未収録。録り方は README の「プレビューを用意する」を参照
-      // ⚠️ このゲームは縦長（スマホ向け）の画面。映像を録ったら ratio を実物に合わせること
+      // ゲーム本体は自前ホストせず、既存の公開版にリンクする方針（2026-09-05 決定）
       desc: "とった しゃしんを きりぬいて、その かたちの まま つみあげる 物理ゲーム。\n1人用と、同じPCでの 2人対戦に 対応。\n\nTypeScript + Vite + matter-js。",
       actions: [
-        { label: "▶ あそぶ", href: "./games/tower/index.html", primary: true },
-        { label: "ソースを見る", href: "" }
+        { label: "▶ あそぶ", href: "https://human-stack-battle-game.pages.dev", primary: true },
+        { label: "ソースを見る", href: "https://github.com/medaka333/animalVS" }
       ]
     },
     // --- ここから下は枠の見本。中身は未確定なので、実物に置き換えてください ---
