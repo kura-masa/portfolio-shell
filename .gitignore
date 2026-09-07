@@ -3,3 +3,10 @@
 games/*
 !games/.gitkeep
 .DS_Store
+
+# ローカルの録画原本と編集用中間ファイル（配信用は demos/）
+/GIJIRO.mp4
+/PJ.mp4
+/たわーばとる.mp4
+/ゆるりLP.mp4
+/.work-video/

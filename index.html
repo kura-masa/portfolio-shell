@@ -5,179 +5,92 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ポートフォリオ（仮）</title>
 <style>
-  /* ==========================================================================
-     festival-kiosk の「ゲーム選択画面」(public/index.html) から
-     祭り運営に依存する部分を落として、Web公開向けに作り直したシェル。
-
-     引き継いだもの : 左リスト＋右プレビューの2カラム / 選択行とプレビュー枠の
-                      シアンの発光 / 濃紺の地 / ドット絵アイコン / ">" のカーソル
-     落としたもの   : ?station=N / セッションAPIのポーリング / 受付待ちロック画面 /
-                      終了画面 / 8分アイドル / 参加賞 / sendBeacon / ゲームパッド /
-                      cursor:none / 待機デモの自動操縦
-     変えたもの     : 本文の書体（下記）/ 文字サイズ（キオスクの巨大サイズ → 画面用）/
-                      マウス・タップを主操作に / 狭い画面で1カラムに畳む
-     ========================================================================== */
-
-  /* 美咲ゴシックは8pxのドットフォント。キオスクと同じく画面全体に当てている。
-     ⚠️ 文字サイズは必ず8の倍数にすること。半端な値だと1ドットの幅が揃わず縁がガタつく。
-     ⚠️ 画数の多い漢字は小さいサイズで潰れる（festival-kiosk で実測済み）。
-        漢字を足すときは実物で読めるか見てから。潰れるものは かな に開くと収まる。 */
   @font-face {
     font-family: "Misaki";
     src: url("./fonts/misaki_gothic.ttf") format("truetype");
     font-display: swap;
   }
-
   :root {
     --bg: #0a0d29;
     --panel: #0d1132;
     --line: #2a2f5e;
     --fg: #ffffff;
-    --dim: #98a0cf;      /* キオスクの #8a90c0 より少し明るい。Web は視聴距離が近く、
-                            暗い画面を長く読むので、コントラストを上げてある */
-    --accent: #6ad8f0;   /* 発光にだけ使う。地の色は濃紺＋白のまま */
+    --dim: #a5add6;
+    --accent: #6ad8f0;
     --sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
-                         /* 美咲が読めなかったときの受け皿としてだけ使う */
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: "Misaki", var(--sans);
-    -webkit-font-smoothing: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  /* ドット絵と映像は補間せずに拡大する（にじませない） */
-  svg, img, video { image-rendering: pixelated; display: block; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
   a { color: inherit; text-decoration: none; }
-
-  /* ===== 全体レイアウト ===== */
-  #app { height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
-
-  header {
-    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
-    padding: 16px 24px; border-bottom: 2px solid var(--line);
-  }
+  svg, img, video { display: block; }
+  svg { image-rendering: pixelated; }
+  #app { min-height: 100dvh; }
+  header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 16px; padding: 16px 24px; border-bottom: 2px solid var(--line); }
+  /* ドット書体はブランドとカーソルに限定し、8の倍数で表示する。 */
+  header .title, footer .key, .row .cursor { font-family: "Misaki", var(--sans); }
   header .title { font-size: 32px; }
-  header .lead { font-size: 16px; color: var(--dim); }
-
-  /* 左は固定幅。割合(34%)にすると窓幅によってプロダクト名が折り返し、行の高さが揃わない。
-     プレビューは高さで決まるので、右を削っても絵は小さくならない。
-     420px の内訳: カーソル24 + アイコン48 + 余白74 + 名前274。
-     美咲は全角1文字＝フォントサイズと同じ幅なので、24pxなら名前は11文字まで1行に収まる。 */
-  main { display: grid; grid-template-columns: 420px 1fr; min-height: 0; }
-
-  /* ===== 左：プロダクトの一覧 ===== */
-  .list {
-    border-right: 2px solid var(--line);
-    padding: 16px 12px; display: flex; flex-direction: column; gap: 8px;
-    overflow-y: auto; min-height: 0;
-  }
-  .row {
-    display: grid; grid-template-columns: 24px 48px 1fr; align-items: center; gap: 12px;
-    padding: 12px 10px; border: 2px solid transparent; cursor: pointer;
-  }
-  .row .cursor { font-size: 24px; visibility: hidden; }
-  .row.sel .cursor { visibility: visible; color: var(--accent); animation: blink 1s steps(1) infinite; }
-  .row .name { font-size: 24px; }
-  .row .sub  { font-size: 16px; color: var(--dim); margin-top: 8px; }
-  .row.sel {
-    background: #1a1f4d;
-    border-color: var(--accent);
-    box-shadow: 0 0 10px rgba(106,216,240,.55), inset 0 0 14px rgba(106,216,240,.10);
-  }
+  header .lead { font-size: 14px; line-height: 1.6; color: var(--dim); }
+  main { display: grid; grid-template-columns: 320px minmax(0, 1fr); align-items: start; }
+  .catalog { min-width: 0; position: sticky; top: 0; border-right: 1px solid var(--line); }
+  .catalog-label { padding: 20px 20px 8px; font-size: 14px; color: var(--dim); }
+  .list { display: flex; flex-direction: column; gap: 8px; max-height: calc(100dvh - 58px); overflow-y: auto; padding: 8px 12px 20px; }
+  .row { display: grid; grid-template-columns: 16px 32px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px 8px; min-height: 76px; flex-shrink: 0; border: 2px solid transparent; cursor: pointer; }
+  .row .cursor { font-size: 16px; visibility: hidden; }
+  .row.sel .cursor { visibility: visible; color: var(--accent); }
+  .row .name { font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; font-weight: 600; }
+  .row .sub { font-size: 12px; line-height: 1.6; margin-top: 4px; color: var(--dim); }
+  .row.sel { background: #1a1f4d; border-color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
   .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  @keyframes blink { 0%, 60% { opacity: 1 } 61%, 100% { opacity: .25 } }
-
-  /* ===== 右：選択中のプロダクト ===== */
-  .detail {
-    padding: 20px 28px 24px; display: grid; grid-template-rows: auto 1fr auto;
-    gap: 14px; min-height: 0;
-  }
-  .detail .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .detail h1 { font-size: 32px; font-weight: normal; }
-  .detail .meta { font-size: 16px; color: var(--dim); }
-  .detail .tag {
-    font-size: 16px; padding: 4px 12px; border: 1px solid var(--line); color: var(--dim);
-  }
-
-  .preview-wrap { display: flex; align-items: center; justify-content: center; min-height: 0; }
-  /* 枠の比率はプロダクトごとに変える（ゲームは 256:240、サイトは 16:9）。
-     JS から --ratio を書き換えている。 */
-  .preview {
-    --ratio: 16 / 9;
-    aspect-ratio: var(--ratio);
-    /* aspect-ratio だけでは大きさが決まらず枠が潰れる。
-       高さを親いっぱいに取り、幅は比率から決めさせる（横にあふれたら max-width で抑える）。 */
-    height: 100%; width: auto; max-width: 100%;
-    position: relative;
-    overflow: hidden;          /* 中身が枠から出ないようにする（下の仮絵の件） */
-    background: #080b20;
-    border: 3px solid var(--accent);
-    box-shadow: 0 0 10px rgba(106,216,240,.40);
-  }
-  /* ⚠️ ここを .preview > * にすると、バッジの <span> まで枠いっぱいに引き伸ばされ、
-     半透明の背景が映像全体を覆ってしまう。伸ばすのは映像の入れ物だけ。 */
-  .preview > .stack { width: 100%; height: 100%; }
-  /* 映像を全部重ねて置き、表示だけ切り替える。
-     選ぶたびに読み込み直すと数百ms待たされるため（キオスクでの実測）。 */
-  .stack { position: relative; }
+  .row:hover { background: #1a1f4d; }
+  .detail { display: grid; width: 100%; max-width: 1040px; margin: 0 auto; padding: 24px 32px 40px; gap: 20px; min-width: 0; }
+  .head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+  .detail h1 { flex-basis: 100%; font-size: 28px; line-height: 1.5; font-weight: 700; overflow-wrap: anywhere; text-wrap: balance; }
+  .tag, .meta { font-size: 13px; line-height: 1.6; color: var(--dim); }
+  .tag { padding: 4px 12px; border: 1px solid var(--line); }
+  .meta:empty { display: none; }
+  .preview-wrap { display: flex; justify-content: center; min-width: 0; }
+  /* 選択で画面が上下しない共通比率。映像全体はcontainで収める。 */
+  .preview { position: relative; width: 100%; max-width: 760px; aspect-ratio: 16 / 9; overflow: hidden; background: #080b20; border: 2px solid var(--accent); box-shadow: 0 0 10px rgba(106,216,240,.3); }
+  .preview > .stack { position: absolute; inset: 0; }
   .stack > * { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
   .stack > .on { display: block; }
-  .preview video, .preview img { object-fit: cover; background: #080b20; }
-  /* ⚠️ 仮絵のインラインSVGは、高さを指定しないと viewBox の比率で伸び、
-     枠を突き抜けて下の説明文に被る。幅・高さの両方を枠に合わせる
-     （preserveAspectRatio は既定の meet なので、絵は歪まず内側に収まる）。 */
-  .stack svg { width: 100%; height: 100%; }
-  /* ゲーム側の画面にもスコア表示があるので、左上ではなく右下に逃がす */
-  .preview .badge {
-    position: absolute; right: 8px; bottom: 8px; z-index: 1;
-    font-size: 16px; color: var(--dim);
-    background: rgba(8,11,32,.75); padding: 3px 8px;
-  }
-
-  .desc { font-size: 16px; line-height: 2; color: #e6e9ff; white-space: pre-line; }
-
-  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 12px 20px; border: 2px solid var(--line); color: var(--dim);
-    font-size: 16px; cursor: pointer;
-  }
+  .stack svg, .stack img { width: 100%; height: 100%; }
+  .preview video, .preview img { object-fit: contain; background: #080b20; }
+  .preview.game video { image-rendering: pixelated; }
+  .badge { position: absolute; right: 8px; bottom: 8px; z-index: 1; font-size: 12px; color: var(--dim); background: rgba(8,11,32,.75); padding: 3px 8px; }
+  .desc { font-size: 16px; line-height: 1.9; color: #e6e9ff; overflow-wrap: anywhere; }
+  .desc p + p { margin-top: 12px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 20px; border: 2px solid var(--line); color: var(--dim); font-size: 14px; font-weight: 600; }
   .btn:hover { border-color: var(--accent); color: var(--fg); }
-  .btn.primary {
-    border-color: var(--accent); color: var(--fg);
-    box-shadow: 0 0 10px rgba(106,216,240,.35);
-  }
+  .btn.primary { border-color: var(--accent); color: var(--fg); box-shadow: 0 0 10px rgba(106,216,240,.25); }
   .btn.primary:hover { background: #1a1f4d; }
   .btn[aria-disabled="true"] { opacity: .4; cursor: default; }
-  .btn[aria-disabled="true"]:hover { border-color: var(--line); color: var(--dim); }
-
-  footer {
-    display: flex; align-items: center; justify-content: center; gap: 32px; flex-wrap: wrap;
-    padding: 12px; border-top: 2px solid var(--line);
-    font-size: 16px; color: var(--dim);
-  }
-  footer .key {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 32px; height: 32px; padding: 0 8px; margin-right: 8px;
-    border: 1px solid var(--line); color: var(--fg); font-size: 16px;
-  }
-
-  /* ===== 狭い画面：1カラムに畳んで、ページごとスクロールさせる =====
-     キオスクは1画面固定でよかったが、こちらはスマホで開かれる。 */
-  @media (max-width: 900px) {
-    #app { height: auto; min-height: 100dvh; }
-    main { grid-template-columns: 1fr; }
-    .list { border-right: none; border-bottom: 2px solid var(--line); overflow: visible; }
-    .detail { padding: 20px; }
-    .detail h1 { font-size: 24px; }
-    /* 幅いっぱいでもプロダクト名が折り返さないよう1段落とす（8の倍数は維持）。
-       sub と同じ大きさになるが、色で区別がつく。 */
-    .row .name { font-size: 16px; }
-    .preview { height: auto; width: 100%; max-width: 100%; }
-    footer { display: none; }   /* キー操作の案内はキーボードのある画面だけでよい */
+  .btn:focus-visible, select:focus-visible, .step:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .mobile-picker { display: none; }
+  .browse { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--dim); font-size: 13px; }
+  .browse-buttons { display: flex; gap: 8px; }
+  .step { background: var(--panel); color: var(--fg); border: 1px solid var(--line); min-height: 44px; padding: 8px 16px; font: inherit; cursor: pointer; }
+  .step:hover { border-color: var(--accent); }
+  footer { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 24px; padding: 12px; border-top: 2px solid var(--line); font-size: 12px; color: var(--dim); }
+  footer .key { font-size: 16px; margin-right: 8px; }
+  @media (max-width: 760px) {
+    header { padding: 20px 16px 16px; gap: 8px; }
+    header .title { font-size: 24px; }
+    header .lead { width: 100%; font-size: 12px; }
+    main { display: block; }
+    .catalog { position: static; border: 0; padding: 16px 16px 0; }
+    .catalog-label, .list { display: none; }
+    .mobile-picker { display: grid; gap: 8px; }
+    .mobile-picker label { font-size: 13px; color: var(--dim); }
+    .mobile-picker select { width: 100%; min-width: 0; min-height: 48px; padding: 10px 8px; background: var(--panel); color: var(--fg); border: 1px solid var(--accent); font: 16px var(--sans); }
+    .detail { padding: 16px 16px 32px; gap: 16px; }
+    .detail h1 { font-size: 22px; }
+    .desc { font-size: 15px; }
+    .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .btn { padding: 12px 8px; }
+    .btn:only-child { grid-column: 1 / -1; }
+    footer { display: none; }
   }
 </style>
 </head>
@@ -190,8 +103,22 @@
   </header>
 
   <main>
-    <div class="list" id="list" role="listbox" aria-label="プロダクト一覧"></div>
-    <div class="detail">
+    <nav class="catalog" aria-label="作品を選ぶ">
+      <div class="catalog-label">作品一覧</div>
+      <div class="mobile-picker">
+        <label for="product-select">作品を選ぶ</label>
+        <select id="product-select"></select>
+      </div>
+      <div class="list" id="list" role="listbox" aria-label="プロダクト一覧"></div>
+    </nav>
+    <section class="detail" aria-labelledby="d-title">
+      <div class="browse">
+        <span id="position" aria-live="polite"></span>
+        <div class="browse-buttons">
+          <button class="step" id="previous" type="button" aria-label="前の作品">← 前へ</button>
+          <button class="step" id="next" type="button" aria-label="次の作品">次へ →</button>
+        </div>
+      </div>
       <div class="head">
         <h1 id="d-title"></h1>
         <span class="tag" id="d-tag"></span>
@@ -205,12 +132,12 @@
       </div>
       <div class="desc" id="d-desc"></div>
       <div class="actions" id="d-actions"></div>
-    </div>
+    </section>
   </main>
 
   <footer>
     <span><span class="key">↑↓</span>えらぶ</span>
-    <span><span class="key">Enter</span>ひらく</span>
+    <span>作品を選んで、ボタンからひらく</span>
   </footer>
 </div>
 
@@ -261,10 +188,10 @@
   //   by       : 誰が作ったか。⚠️ 分からないものは【要確認】のままにしておくこと
   //   icon     : 左リストのドット絵
   //   scene    : プレビューが読めなかったときの仮絵
-  //   ratio    : プレビュー枠の比率（ゲームは "256 / 240"、サイトは "16 / 9"）
+  //   ratio    : 元素材の参考比率（表示枠はPC・スマホ共通で16:9）
   //   demo     : ループ再生する映像（webm/mp4）。無ければ省略
   //   poster   : 映像が無いときに出す静止画。無ければ scene が出る
-  //   desc     : 説明文（普通の書体で読ませる。改行はそのまま反映される）
+  //   desc     : 説明文（空行で段落分け。単一改行は空白にして端末幅に合わせる）
   //   actions  : ボタン。primary:true が光るボタンになる。
   //              href が空文字なら「準備中」として押せない見た目になる
   // ==========================================================================
@@ -290,10 +217,11 @@
       ]
     },
     {
-      id: "tower", name: "ともだちたわーばとる", sub: "つみあげて たたかう", tag: "ゲーム",
+      id: "human-stack-battle-20260715", name: "ともだちたわーばとる", sub: "つみあげて たたかう", tag: "ゲーム",
       by: "制作: 谷口",
       icon: ICON_TW, scene: SCENE_TOWER, ratio: "16 / 9",
-      // ⚠️ 映像が未収録。録り方は README の「プレビューを用意する」を参照
+      demo: "./demos/human-stack-battle-20260715.mp4",
+      poster: "./previews/human-stack-battle-20260715.jpg",
       // ゲーム本体は自前ホストせず、既存の公開版にリンクする方針（2026-09-05 決定）
       desc: "とった しゃしんを きりぬいて、その かたちの まま つみあげる 物理ゲーム。\n1人用と、同じPCでの 2人対戦に 対応。\n\nTypeScript + Vite + matter-js。",
       actions: [
@@ -377,16 +305,49 @@
       actions: [
         { label: "サイトを見る", href: "https://junpumaru.web.app", primary: true }
       ]
+    },
+    {
+      id: "gijiro-winwinreco", name: "GIJIRO / WinWinReco", sub: "会議から 議事録・要約・ToDo", tag: "Webアプリ",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/gijiro-winwinreco.mp4",
+      poster: "./previews/gijiro-winwinreco.jpg",
+      desc: "会議の音声を文字に起こし、AIで議事録・要約・ToDoをまとめるアプリ。\n\n会議の作成にはアカウントが必要です。参加者はルームIDから参加できます。",
+      actions: [
+        { label: "サイトを見る", href: "https://winwinreco-227823039350.asia-northeast1.run.app/", primary: true },
+        { label: "ソースを見る", href: "https://github.com/ninnzinn3bonn-creator/winwinreco" }
+      ]
+    },
+    {
+      id: "yururi-landing-page", name: "城崎 柳通り ゆるり", sub: "貸切宿の魅力を 写真と多言語で", tag: "Webサイト",
+      icon: ICON_WEB, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/yururi-landing-page.mp4",
+      poster: "./previews/yururi-landing-page.jpg",
+      desc: "城崎の貸切宿「城崎 柳通り ゆるり」の紹介サイト。客室の写真、設備、周辺での過ごし方を案内します。\n\n日本語・英語・繁体字・韓国語に対応し、予約サイトへの案内も備えています。",
+      actions: [
+        { label: "サイトを見る", href: "https://yururi-landing-page.pages.dev/", primary: true }
+      ]
+    },
+    {
+      id: "local-project-register", name: "開発プロジェクト台帳", sub: "進捗と概念図を ひとつの台帳に", tag: "ローカルアプリ",
+      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
+      demo: "./demos/local-project-register.mp4",
+      poster: "./previews/local-project-register.jpg",
+      desc: "複数プロジェクトの進捗、次の作業、課題、概念図をまとめて管理するアプリ。Web画面・CLI・Codexプラグインから利用できます。\n\nPCに導入して使うローカルアプリです。ブラウザで試せる公開版は未確認のため、導入方法をGitHubで案内しています。",
+      actions: [
+        { label: "GitHubで見る", href: "https://github.com/ninnzinn3bonn-creator/pj-", primary: true }
+      ]
     }];
 
   // ---------- 画面の組み立て ----------
   let sel = 0;
   const $list = document.getElementById("list");
   const $stack = document.getElementById("d-stack");
+  const $picker = document.getElementById("product-select");
 
   function buildList() {
+    $picker.replaceChildren(...PRODUCTS.map((p, i) => new Option(p.name, String(i))));
     $list.innerHTML = PRODUCTS.map((p, i) => `
-      <div class="row" data-i="${i}" role="option" tabindex="0" aria-selected="false">
+      <div class="row" data-i="${i}" role="option" tabindex="-1" aria-selected="false">
         <div class="cursor">&gt;</div>
         <div class="art">${p.icon}</div>
         <div><div class="name">${p.name}</div><div class="sub">${p.sub}</div></div>
@@ -419,7 +380,7 @@
         return;
       }
       const v = document.createElement("video");
-      v.src = p.demo; v.muted = true; v.loop = true; v.autoplay = true;
+      v.src = p.demo; v.muted = true; v.loop = true; v.autoplay = false;
       v.playsInline = true; v.preload = "metadata"; v.dataset.i = i;
       v.addEventListener("error", fallback);
       $stack.appendChild(v);
@@ -433,20 +394,31 @@
       const on = i === sel;
       el.classList.toggle("sel", on);
       el.setAttribute("aria-selected", String(on));
+      el.tabIndex = on ? 0 : -1;
     });
 
     document.getElementById("d-title").textContent = p.name;
     document.getElementById("d-tag").textContent = p.tag || "";
     document.getElementById("d-by").textContent = p.by || "";
-    document.getElementById("d-desc").textContent = p.desc || "";
+    const paragraphs = (p.desc || "").split(/\n\s*\n/).map(text => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text.replace(/\n/g, " ");
+      return paragraph;
+    });
+    document.getElementById("d-desc").replaceChildren(...paragraphs);
+    $picker.value = String(sel);
+    document.getElementById("position").textContent = `${String(sel + 1).padStart(2, "0")} / ${PRODUCTS.length} 作品`;
+    document.getElementById("d-preview").classList.toggle("game", p.tag === "ゲーム");
     document.getElementById("d-badge").textContent = p.demo ? "デモ" : "プレビュー";
-    document.getElementById("d-preview").style.setProperty("--ratio", p.ratio || "16 / 9");
 
     [...$stack.children].forEach((el, i) => {
       const on = i === sel;
       el.classList.toggle("on", on);
       // 隠れているあいだブラウザが再生を間引くことがあるので、出すときに必ず起こす
-      if (on && el.tagName === "VIDEO") el.play().catch(() => {});
+      if (el.tagName === "VIDEO") {
+        if (on) el.play().catch(() => {});
+        else el.pause();
+      }
     });
 
     document.getElementById("d-actions").innerHTML = (p.actions || []).map((a) => {
@@ -457,48 +429,44 @@
     }).join("");
   }
 
-  function move(delta) {
-    sel = (sel + delta + PRODUCTS.length) % PRODUCTS.length;
+  function selectProduct(index) {
+    sel = (index + PRODUCTS.length) % PRODUCTS.length;
     render();
-    document.querySelectorAll("#list .row")[sel].scrollIntoView({ block: "nearest" });
   }
 
-  // 選択中のプロダクトの、いちばん上のボタンを開く
-  function open() {
-    const a = document.querySelector("#d-actions a");
-    if (a) location.href = a.getAttribute("href");
+  function move(delta, focusList = false) {
+    selectProduct(sel + delta);
+    if (focusList) {
+      const row = $list.querySelectorAll(".row")[sel];
+      row.focus({ preventScroll: true });
+      row.scrollIntoView({ block: "nearest" });
+    }
   }
 
-  // ---------- 操作 ----------
-  // マウスのある画面では「ホバーで選ぶ・クリックで開く」。
-  // タッチでは ホバーが無いので、キオスクと同じ「1回目で選ぶ・2回目で開く」にする。
-  const canHover = matchMedia("(hover: hover)").matches;
-
+  // PCもタッチも「選択→内容を確認→リンクで開く」に統一する。
   buildList();
   buildStack();
   render();
 
-  $list.addEventListener("mouseover", (e) => {
-    if (!canHover) return;
-    const row = e.target.closest(".row");
-    if (!row) return;
-    const i = +row.dataset.i;
-    if (i !== sel) { sel = i; render(); }
-  });
-
+  $picker.addEventListener("change", () => selectProduct(Number($picker.value)));
+  document.getElementById("previous").addEventListener("click", () => move(-1));
+  document.getElementById("next").addEventListener("click", () => move(1));
   $list.addEventListener("click", (e) => {
     const row = e.target.closest(".row");
-    if (!row) return;
-    const i = +row.dataset.i;
-    if (canHover || i === sel) { sel = i; render(); open(); }
-    else { sel = i; render(); }
+    if (row) selectProduct(Number(row.dataset.i));
   });
-
-  // キーボードでも一通り動かせるようにしておく（元のキオスクの操作感を残す）
-  addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); move(1); }
-    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); move(-1); }
-    else if (e.key === "Enter") open();
+  $list.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const delta = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+    if (delta) { e.preventDefault(); move(delta, true); }
+    else if (e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      selectProduct(e.key === "Home" ? 0 : PRODUCTS.length - 1);
+      $list.querySelectorAll(".row")[sel].focus();
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      selectProduct(Number(e.target.closest(".row").dataset.i));
+    }
   });
 </script>
 </body>
