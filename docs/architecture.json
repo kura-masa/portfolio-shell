@@ -1,0 +1,304 @@
+{
+  "schema_version": 1,
+  "kind": "architecture-graph",
+  "document": {
+    "id": "portfolio-shell-architecture",
+    "title": "portfolio-shell 概念図",
+    "summary": "単一HTMLの静的ポートフォリオ。PC・スマホ共通の13作品選択、デモ表示、外部公開サイトへの導線。専用バックエンド・DBなし。",
+    "generated_at": "2026-09-07T17:09:49.133264+00:00"
+  },
+  "project": {
+    "project_id": "portfolio-shell",
+    "name": "portfolio-shell（ポートフォリオサイト）",
+    "summary": "PC・スマホ共通の13作品ポートフォリオを実装。全作品にデモ映像を設定し、追加4本を編集・軽量化。6画面幅の表示、動画再生、リンクを検証。daaf850でコミット済みだがGitHubへのpushは権限不足で未完了。",
+    "version": "",
+    "analyzed_at": "2026-09-07T17:09:49.133264+00:00",
+    "source_root": ".",
+    "app_url": "",
+    "admin_url": "",
+    "repository_url": "https://github.com/kura-masa/portfolio-shell",
+    "development_url": "http://127.0.0.1:4173/",
+    "status": "testing",
+    "progress": 85,
+    "tags": [
+      "ポートフォリオ",
+      "静的サイト",
+      "HTML",
+      "CSS",
+      "JavaScript",
+      "レスポンシブ",
+      "動画"
+    ]
+  },
+  "groups": [
+    {
+      "id": "actors",
+      "name": "利用者"
+    },
+    {
+      "id": "client",
+      "name": "ブラウザ"
+    },
+    {
+      "id": "data",
+      "name": "作品データ・素材"
+    },
+    {
+      "id": "services",
+      "name": "外部公開先"
+    },
+    {
+      "id": "operations",
+      "name": "制作・配信"
+    }
+  ],
+  "components": [
+    {
+      "id": "visitor",
+      "name": "PC・スマホの閲覧者",
+      "group": "actors",
+      "type": "actor",
+      "role": "作品を選び詳細を確認する",
+      "files": [
+        "README.md"
+      ],
+      "technologies": [],
+      "responsibilities": [
+        "クリック・タップ・キーボードで選択"
+      ],
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "id": "shell",
+      "name": "共通表示・選択UI",
+      "group": "client",
+      "type": "frontend",
+      "role": "index.htmlのCSSとJavaScript",
+      "files": [
+        "index.html"
+      ],
+      "technologies": [
+        "HTML",
+        "CSS",
+        "JavaScript"
+      ],
+      "responsibilities": [
+        "761px以上は一覧＋詳細、760px以下は選択メニュー＋詳細",
+        "前後・矢印キー操作で選択状態を同期",
+        "選択中の動画のみ再生し、失敗時は静止画・SVGへ切り替え",
+        "作品リンクから外部ページへ移動"
+      ],
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "id": "catalog",
+      "name": "PRODUCTS 13作品",
+      "group": "data",
+      "type": "configuration",
+      "role": "作品名・説明・素材・リンクの定義",
+      "files": [
+        "index.html"
+      ],
+      "technologies": [
+        "JavaScript配列"
+      ],
+      "responsibilities": [
+        "1つの作品データをPCとスマホで共用"
+      ],
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "id": "media",
+      "name": "動画・静止画・フォント",
+      "group": "data",
+      "type": "assets",
+      "role": "ローカル静的アセット",
+      "files": [
+        "demos/",
+        "previews/",
+        "fonts/misaki_gothic.ttf",
+        "demos/README.md"
+      ],
+      "technologies": [
+        "WebM",
+        "MP4 H.264",
+        "JPEG",
+        "TTF"
+      ],
+      "responsibilities": [
+        "全13作品のデモ映像",
+        "追加4作品の代替静止画",
+        "ブランド表記のドット書体"
+      ],
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "id": "external",
+      "name": "公開アプリ・GitHub",
+      "group": "services",
+      "type": "external",
+      "role": "作品本体・公開ソースへのリンク先",
+      "files": [
+        "index.html",
+        "HANDOFF.md"
+      ],
+      "technologies": [
+        "HTTPS"
+      ],
+      "responsibilities": [
+        "公開サイトやソースリポジトリへ案内",
+        "台帳アプリは公開GitHubから導入案内"
+      ],
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "id": "hosting",
+      "name": "静的HTTP配信",
+      "group": "operations",
+      "type": "hosting",
+      "role": "ビルド不要でHTMLと素材を配信",
+      "files": [
+        "README.md",
+        "preview.html"
+      ],
+      "technologies": [
+        "Python http.server",
+        "HTTP"
+      ],
+      "responsibilities": [
+        "ローカル4173で確認",
+        "preview.htmlはindex.htmlへ転送",
+        "本サイトの公開環境は未確認"
+      ],
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "id": "editing",
+      "name": "録画素材の編集",
+      "group": "operations",
+      "type": "tooling",
+      "role": "配信用動画を制作",
+      "files": [
+        "demos/README.md",
+        ".gitignore"
+      ],
+      "technologies": [
+        "FFmpeg"
+      ],
+      "responsibilities": [
+        "不要区間とブラウザ欄を除去、無音化・軽量化",
+        "編集原本と中間ファイルをGit対象から除外"
+      ],
+      "inputs": [],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "select",
+      "source": "visitor",
+      "target": "shell",
+      "label": "作品を選ぶ",
+      "type": "data-flow",
+      "protocol": "UI events",
+      "description": "作品を選ぶ"
+    },
+    {
+      "id": "read-catalog",
+      "source": "catalog",
+      "target": "shell",
+      "label": "作品データを表示",
+      "type": "data-flow",
+      "protocol": "JavaScript",
+      "description": "作品データを表示"
+    },
+    {
+      "id": "load-media",
+      "source": "media",
+      "target": "shell",
+      "label": "デモと代替素材を読み込む",
+      "type": "data-flow",
+      "protocol": "HTTP",
+      "description": "デモと代替素材を読み込む"
+    },
+    {
+      "id": "navigate",
+      "source": "shell",
+      "target": "external",
+      "label": "ボタンで作品・ソースを開く",
+      "type": "data-flow",
+      "protocol": "HTTPS",
+      "description": "ボタンで作品・ソースを開く"
+    },
+    {
+      "id": "serve",
+      "source": "hosting",
+      "target": "shell",
+      "label": "HTML・CSS・JSを配信",
+      "type": "data-flow",
+      "protocol": "HTTP",
+      "description": "HTML・CSS・JSを配信"
+    },
+    {
+      "id": "encode",
+      "source": "editing",
+      "target": "media",
+      "label": "編集済み動画・静止画を生成",
+      "type": "data-flow",
+      "protocol": "Files",
+      "description": "編集済み動画・静止画を生成"
+    }
+  ],
+  "flows": [
+    {
+      "id": "browse",
+      "name": "作品を選んで開く",
+      "description": "画面幅に応じたナビゲーションで作品を選択し、映像と説明を確認してリンクを開く。ゲーム本体をプレビュー用iframeとして読み込まない。",
+      "node_ids": [
+        "visitor",
+        "shell",
+        "catalog",
+        "media",
+        "external"
+      ],
+      "edge_ids": [
+        "select",
+        "read-catalog",
+        "load-media",
+        "navigate"
+      ],
+      "steps": [
+        {
+          "title": "作品選択",
+          "description": "PC一覧・スマホ選択メニュー・前後ボタンを操作する",
+          "component_id": "shell"
+        },
+        {
+          "title": "詳細と映像",
+          "description": "作品データに応じた動画だけを再生し、読めなければ静止画・SVGで代替する",
+          "component_id": "media"
+        },
+        {
+          "title": "外部へ移動",
+          "description": "リンクボタンから作品サイトまたはGitHubへ移動する",
+          "edge_id": "navigate"
+        }
+      ]
+    }
+  ],
+  "presentation": {},
+  "extensions": {
+    "evidence_commit": "daaf850",
+    "limitations": [
+      "ninnzinn3bonn-creatorにkura-masa/portfolio-shellの書き込み権限がなくpushが403で失敗",
+      "STG・ブロックくずしは一人目の公開URL受領待ち",
+      "LOCA・旅館ダッシュボード・保険営業支援・Ideas & KnowledgesのGitHubソースリンクが未認証で404"
+    ]
+  }
+}
