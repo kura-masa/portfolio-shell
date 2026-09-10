@@ -6,8 +6,8 @@
 <title>ポートフォリオ</title>
 <style>
   @font-face {
-    font-family: "Misaki";
-    src: url("./fonts/misaki_gothic.ttf") format("truetype");
+    font-family: "DotGothic16";
+    src: url("./fonts/DotGothic16-Regular.ttf") format("truetype");
     font-display: swap;
   }
   :root {
@@ -17,7 +17,7 @@
     --fg: #ffffff;
     --dim: #a5add6;
     --accent: #6ad8f0;
-    --sans: "Misaki", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+    --sans: "DotGothic16", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--fg); font-family: var(--sans); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
@@ -251,7 +251,8 @@
       id: "junpumaru", name: "漁業・出漁サポート", navName: "データベース整理", sub: "あなたのデータをみやすく", tag: "Webアプリ",
       by: "制作: kura-masa",
       icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
-      demo: "./demos/junpumaru.webm",
+      demo: "./demos/junpumaru.mp4",
+      poster: "./previews/junpumaru.jpg",
       desc: "漁師さん向けの 出漁サポート＆漁獲統計アプリ。\n波や 風の 予報を みながら、いつ 出るかを 判断できます。\n\n非公開情報のため、サイトへのリンクは 非公開です。",
       actions: [
         { label: "サイトを見る", href: "", primary: true }
