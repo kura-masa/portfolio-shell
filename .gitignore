@@ -10,3 +10,6 @@ games/*
 /たわーばとる.mp4
 /ゆるりLP.mp4
 /.work-video/
+
+.vercel
+.env*
