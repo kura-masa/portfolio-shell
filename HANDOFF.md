@@ -150,3 +150,11 @@ http://127.0.0.1:4173/ を開く。静的HTMLなので編集後はブラウザ�
 ## 権限付与の確認（2026-09-08）
 
 GitHub APIで現在のアカウントにpull=true / push=trueを確認。資料の過去ログには初回403の経緯を残す。台帳の85%・概念図は登録時点の状態で、台帳側の権限不足課題はまだ更新していない。
+
+## GitHub Pages公開の確認（2026-09-10）
+
+- リポジトリはpublic、`master`が既定ブランチ、GitHub Pagesは未作成（`has_pages=false`、Pages APIは404）。
+- 現在のGitHub権限はpull/push/triageで、admin/maintainなし。Pagesサイト作成APIを`master`の`/(root)`指定で実行したが、権限不足を隠す404で拒否された。
+- GitHub公式要件ではPagesの公開元設定にadmin・maintainer・Pages設定管理権限のいずれかが必要。Write権限だけでは設定できない。
+- 静的ファイルをそのまま配信できるよう、リポジトリルートに`.nojekyll`を追加。所有者または管理権限保持者が Settings → Pages → Deploy from a branch → `master` → `/(root)` → Save を実行すれば公開準備が整う。
+- 想定URLは `https://kura-masa.github.io/portfolio-shell/`。設定後にPagesビルド完了と、このURLでの映像・フォント・相対リンクを確認する。
