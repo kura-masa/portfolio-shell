@@ -17,7 +17,7 @@
     --fg: #ffffff;
     --dim: #a5add6;
     --accent: #6ad8f0;
-    --sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+    --sans: "Misaki", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--fg); font-family: var(--sans); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
@@ -26,8 +26,6 @@
   svg { image-rendering: pixelated; }
   #app { min-height: 100dvh; }
   header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 16px; padding: 16px 24px; border-bottom: 2px solid var(--line); }
-  /* ドット書体はブランドとカーソルに限定し、8の倍数で表示する。 */
-  header .title, footer .key, .row .cursor { font-family: "Misaki", var(--sans); }
   header .title { font-size: 32px; }
   header .lead { font-size: 14px; line-height: 1.6; color: var(--dim); }
   main { display: grid; grid-template-columns: 320px minmax(0, 1fr); align-items: start; }
