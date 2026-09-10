@@ -229,36 +229,13 @@
     },
     // --- ここから下は枠の見本。中身は未確定なので、実物に置き換えてください ---
     {
-      id: "shinonsen-townhall-punch", name: "新温泉町役場 打刻PWA", sub: "スマホでかんたん 出退勤", tag: "Webアプリ",
+      id: "event-collection", name: "イベントコレクション", sub: "イベントを集めて 申込みまで", tag: "Webアプリ",
       by: "制作: kura-masa",
       icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
-      demo: "./demos/shinonsen-townhall-punch.webm",
-      desc: "新温泉町役場向けの 出退勤きろく PWA。\nホーム画面に追加すると、アプリのように 全画面で 起動します。\n\n打刻した しゅんかんだけ 位置情報を送り、庁舎内かどうかを 判定します。",
+      desc: "地域・コミュニティ向けの イベント情報集約・申込みプラットフォーム。\nイベントの公開、参加申込みの受付、参加者かんりまで 1つのアプリで完結します。\n\nNext.js（フロントエンド）と Firebase（バックエンド）で構築。",
       actions: [
-        { label: "サイトを見る", href: "https://kura-masa.github.io/shinonsen-townhall-punch/", primary: true },
-        { label: "ソースを見る", href: "https://github.com/kura-masa/shinonsen-townhall-punch" }
-      ]
-    },
-    {
-      id: "loca-the-junpu-ai-chatbot", name: "LOCA THE JUNPU AIチャットボット", sub: "予約ページに AIコンシェルジュ", tag: "Webアプリ",
-      by: "制作: kura-masa",
-      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
-      demo: "./demos/loca-the-junpu-ai-chatbot.webm",
-      desc: "宿泊施設「LOCA THE JUNPU」の 予約ページに\nRAG と Gemini で 動く AIコンシェルジュを 埋め込んだ デモ。\n\nお客様からの 質問に、その場で 自動で 答えます。",
-      actions: [
-        { label: "サイトを見る", href: "https://loca-the-junpu-ai-chatbot.vercel.app", primary: true },
-        { label: "ソースを見る", href: "https://github.com/kura-masa/loca-the-junpu-ai-chatbot" }
-      ]
-    },
-    {
-      id: "junpu-dashboard", name: "旅館 予約ダッシュボード", sub: "Beds24と つながる 予約かんり", tag: "Webアプリ",
-      by: "制作: kura-masa",
-      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
-      demo: "./demos/junpu-dashboard.webm",
-      desc: "予約サイト連携システム Beds24 の データを 読みこみ、\n見やすく かしか するための ダッシュボード。\n\n非公開情報のため、サイト・ソースへのリンクは 非公開です。",
-      actions: [
-        { label: "サイトを見る", href: "", primary: true },
-        { label: "ソースを見る", href: "" }
+        { label: "サイトを見る", href: "https://shinonsen-event.jp", primary: true },
+        { label: "ソースを見る", href: "https://github.com/kura-masa/event_collection" }
       ]
     },
     {
@@ -284,18 +261,7 @@
       ]
     },
     {
-      id: "o-range-website", name: "O-range", sub: "メンバー紹介と 音声要約", tag: "Webアプリ",
-      by: "制作: kura-masa",
-      icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
-      demo: "./demos/o-range-website.webm",
-      desc: "スマホに 特化した メンバー紹介・進捗報告サイト。\n音声で 話した 内容を、AIが 自動で 要約します。",
-      actions: [
-        { label: "サイトを見る", href: "https://website--o-range-ba273.asia-southeast1.hosted.app", primary: true },
-        { label: "ソースを見る", href: "https://github.com/kura-masa/o-range-website" }
-      ]
-    },
-    {
-      id: "junpumaru", name: "順風丸", sub: "漁業を 出漁サポートと 統計で", tag: "Webアプリ",
+      id: "junpumaru", name: "漁業・出漁サポート", navName: "データベース整理", sub: "あなたのデータをみやすく", tag: "Webアプリ",
       by: "制作: kura-masa",
       icon: ICON_APP, scene: SCENE_BLANK, ratio: "16 / 9",
       demo: "./demos/junpumaru.webm",
@@ -343,12 +309,12 @@
   const $picker = document.getElementById("product-select");
 
   function buildList() {
-    $picker.replaceChildren(...PRODUCTS.map((p, i) => new Option(p.name, String(i))));
+    $picker.replaceChildren(...PRODUCTS.map((p, i) => new Option(p.navName || p.name, String(i))));
     $list.innerHTML = PRODUCTS.map((p, i) => `
       <div class="row" data-i="${i}" role="option" tabindex="-1" aria-selected="false">
         <div class="cursor">&gt;</div>
         <div class="art">${p.icon}</div>
-        <div><div class="name">${p.name}</div><div class="sub">${p.sub}</div></div>
+        <div><div class="name">${p.navName || p.name}</div><div class="sub">${p.sub}</div></div>
       </div>`).join("");
   }
 
